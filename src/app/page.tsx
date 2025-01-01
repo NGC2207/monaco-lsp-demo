@@ -13,6 +13,7 @@ import {
 import { editor } from "monaco-editor";
 import * as monaco from "monaco-editor";
 import { Editor, Monaco } from "@monaco-editor/react";
+import "@codingame/monaco-vscode-cpp-default-extension";
 import { MonacoLanguageClient } from "monaco-languageclient";
 import getConfigurationServiceOverride, {
   updateUserConfiguration,

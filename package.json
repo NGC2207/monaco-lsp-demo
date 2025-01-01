@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@codingame/monaco-vscode-chat-extensions-notebook-task-terminal-testing-common": "^11.1.2",
+    "@codingame/monaco-vscode-cpp-default-extension": "^11.1.2",
     "@monaco-editor/react": "^4.6.0",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api",
     "monaco-languageclient": "^9.0.0",
