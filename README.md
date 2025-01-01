@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
+To run the project, you need to run the following commands:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun run install
+bun run dev
 ```
+I only changed the src/app/page.tsx file:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```tsx
+"use client";
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+import {
+  toSocket,
+  WebSocketMessageReader,
+  WebSocketMessageWriter,
+} from "vscode-ws-jsonrpc";
+import {
+  CloseAction,
+  ErrorAction,
+  MessageTransports,
+} from "vscode-languageclient";
+import { editor } from "monaco-editor";
+import * as monaco from "monaco-editor";
+import { Editor, Monaco } from "@monaco-editor/react";
+import "@codingame/monaco-vscode-cpp-default-extension";
+import { MonacoLanguageClient } from "monaco-languageclient";
+import getConfigurationServiceOverride, {
+  updateUserConfiguration,
+} from "@codingame/monaco-vscode-configuration-service-override";
+import { initServices } from "monaco-languageclient/vscode/services";
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+export default function HomePage() {
+  async function handleEditorWillMount(monaco: Monaco) {
+    await initServices(
+      {
+        serviceOverrides: {
+          ...getConfigurationServiceOverride(),
+        },
+      },
+      {}
+    );
 
-## Learn More
+    updateUserConfiguration(
+      JSON.stringify({
+        "editor.experimental.asyncTokenization": true,
+      })
+    );
+  }
 
-To learn more about Next.js, take a look at the following resources:
+  function handleEditorDidMount(
+    editor: editor.IStandaloneCodeEditor,
+    monaco: Monaco
+  ) {
+    initWebSocketAndStartClient("ws://localhost:30001/clangd");
+  }
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+  return (
+    <Editor
+      height="100vh"
+      language="c"
+      theme="vs-dark"
+      path="main.c"
+      value={`#include <stdio.h>
+int main() {
+  printf("Hello, world!");
+  return 0;
+}
+`}
+      beforeMount={handleEditorWillMount}
+      onMount={handleEditorDidMount}
+      options={{ wordBasedSuggestions: "off" }}
+    />
+  );
+}
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+const createLanguageClient = (
+  messageTransports: MessageTransports
+): MonacoLanguageClient => {
+  return new MonacoLanguageClient({
+    name: "C Language Client",
+    clientOptions: {
+      documentSelector: ["c"],
+      errorHandler: {
+        error: () => ({ action: ErrorAction.Continue }),
+        closed: () => ({ action: CloseAction.DoNotRestart }),
+      },
+      workspaceFolder: {
+        index: 0,
+        name: "workspace",
+        uri: monaco.Uri.parse("/workspace"),
+      },
+    },
+    messageTransports,
+  });
+};
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+const initWebSocketAndStartClient = (url: string): WebSocket => {
+  const webSocket = new WebSocket(url);
+  webSocket.onopen = () => {
+    const socket = toSocket(webSocket);
+    const reader = new WebSocketMessageReader(socket);
+    const writer = new WebSocketMessageWriter(socket);
+    const languageClient = createLanguageClient({
+      reader,
+      writer,
+    });
+    languageClient.start();
+    reader.onClose(() => languageClient.stop());
+  };
+  return webSocket;
+};
+```
