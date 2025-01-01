@@ -11,6 +11,7 @@ import {
   MessageTransports,
 } from "vscode-languageclient";
 import { editor } from "monaco-editor";
+import * as monaco from "monaco-editor";
 import { Editor, Monaco } from "@monaco-editor/react";
 import { MonacoLanguageClient } from "monaco-languageclient";
 import getConfigurationServiceOverride, {
@@ -72,6 +73,11 @@ const createLanguageClient = (
       errorHandler: {
         error: () => ({ action: ErrorAction.Continue }),
         closed: () => ({ action: CloseAction.DoNotRestart }),
+      },
+      workspaceFolder: {
+        index: 0,
+        name: "workspace",
+        uri: monaco.Uri.parse("/workspace"),
       },
     },
     messageTransports,
