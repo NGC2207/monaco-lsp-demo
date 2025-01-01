@@ -10,7 +10,8 @@ import {
   ErrorAction,
   MessageTransports,
 } from "vscode-languageclient";
-import { Editor } from "@monaco-editor/react";
+import { editor } from "monaco-editor";
+import { Editor, Monaco } from "@monaco-editor/react";
 import { MonacoLanguageClient } from "monaco-languageclient";
 import getConfigurationServiceOverride, {
   updateUserConfiguration,
@@ -18,39 +19,7 @@ import getConfigurationServiceOverride, {
 import { initServices } from "monaco-languageclient/vscode/services";
 
 export default function HomePage() {
-  const createLanguageClient = (
-    messageTransports: MessageTransports
-  ): MonacoLanguageClient => {
-    return new MonacoLanguageClient({
-      name: "C Language Client",
-      clientOptions: {
-        documentSelector: ["c"],
-        errorHandler: {
-          error: () => ({ action: ErrorAction.Continue }),
-          closed: () => ({ action: CloseAction.DoNotRestart }),
-        },
-      },
-      messageTransports,
-    });
-  };
-
-  const initWebSocketAndStartClient = (url: string): WebSocket => {
-    const webSocket = new WebSocket(url);
-    webSocket.onopen = () => {
-      const socket = toSocket(webSocket);
-      const reader = new WebSocketMessageReader(socket);
-      const writer = new WebSocketMessageWriter(socket);
-      const languageClient = createLanguageClient({
-        reader,
-        writer,
-      });
-      languageClient.start();
-      reader.onClose(() => languageClient.stop());
-    };
-    return webSocket;
-  };
-
-  async function handleEditorWillMount() {
+  async function handleEditorWillMount(monaco: Monaco) {
     await initServices(
       {
         serviceOverrides: {
@@ -67,6 +36,13 @@ export default function HomePage() {
     );
   }
 
+  function handleEditorDidMount(
+    editor: editor.IStandaloneCodeEditor,
+    monaco: Monaco
+  ) {
+    initWebSocketAndStartClient("ws://localhost:30001/clangd");
+  }
+
   return (
     <Editor
       height="100vh"
@@ -80,8 +56,40 @@ int main() {
 }
 `}
       beforeMount={handleEditorWillMount}
-      onMount={() => initWebSocketAndStartClient("ws://localhost:30001/c")}
+      onMount={handleEditorDidMount}
       options={{ wordBasedSuggestions: "off" }}
     />
   );
 }
+
+const createLanguageClient = (
+  messageTransports: MessageTransports
+): MonacoLanguageClient => {
+  return new MonacoLanguageClient({
+    name: "C Language Client",
+    clientOptions: {
+      documentSelector: ["c"],
+      errorHandler: {
+        error: () => ({ action: ErrorAction.Continue }),
+        closed: () => ({ action: CloseAction.DoNotRestart }),
+      },
+    },
+    messageTransports,
+  });
+};
+
+const initWebSocketAndStartClient = (url: string): WebSocket => {
+  const webSocket = new WebSocket(url);
+  webSocket.onopen = () => {
+    const socket = toSocket(webSocket);
+    const reader = new WebSocketMessageReader(socket);
+    const writer = new WebSocketMessageWriter(socket);
+    const languageClient = createLanguageClient({
+      reader,
+      writer,
+    });
+    languageClient.start();
+    reader.onClose(() => languageClient.stop());
+  };
+  return webSocket;
+};
